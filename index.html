@@ -1558,7 +1558,7 @@ input:checked + .toggle-slider:before { transform:translateX(20px); }
 <script type="module">
 const fmtOrderId=(id,o)=>(o&&o.orderNo)?'#'+String(o.orderNo).padStart(5,'0'):'#'+id.slice(-6).toUpperCase();
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
+import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js';
 import { getDatabase, ref, set, get, push, remove, onValue, update, onChildAdded, onChildChanged, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js';
 
 const firebaseConfig = window.__APP_CONFIG__;
@@ -1691,7 +1691,20 @@ $('adminDashboard').style.display='block';menuToggle.classList.remove('hidden');
 {const bn=$('bottomNav'); if(bn) bn.style.display='flex';}
 $('drawerUserName').textContent='Admin';$('drawerUserEmail').textContent='';
 // run after the whole module has evaluated so every window.* helper / const is defined
-setTimeout(initData,0);
+// Rules need an authenticated session (and a meta/admins entry for admin-only nodes).
+// There is no login screen any more, so sign in silently (anonymous) and register this session as admin.
+setTimeout(async()=>{
+  try{
+    if(!auth.currentUser) await signInAnonymously(auth);
+    await set(ref(db,`meta/admins/${auth.currentUser.uid}`),true);
+  }catch(e){
+    console.error('[Auth] silent sign-in failed',e);
+    const el=$('initLoader');
+    if(el) el.innerHTML='<div style="max-width:420px;padding:20px;text-align:center;font-size:13px;line-height:1.7;color:var(--text-primary);"><div style="font-size:30px;margin-bottom:8px;">⚠️</div><b>Sign-in failed</b><br><span style="color:var(--text-secondary);font-size:12px;">'+((e&&e.code==='auth/operation-not-allowed'||e&&e.code==='auth/admin-restricted-operation')?'Firebase Console → Authentication → Sign-in method → Anonymous ko Enable karo.':(e&&e.message)||'')+'</span><br><button onclick="location.reload()" style="margin-top:14px;padding:8px 18px;border:none;border-radius:8px;background:#2563eb;color:#fff;font-weight:600;cursor:pointer;">Retry</button></div>';
+    return;
+  }
+  initData();
+},0);
 
 // ── INIT DATA ────────────────────────────────────────────────────────
 
